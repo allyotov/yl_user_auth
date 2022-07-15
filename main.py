@@ -1,3 +1,5 @@
+import logging
+
 import redis
 import uvicorn
 from fastapi import FastAPI
@@ -5,6 +7,9 @@ from fastapi import FastAPI
 from src.api.v1.resources import posts
 from src.core import config
 from src.db import cache, redis_cache
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     # Конфигурируем название проекта. Оно будет отображаться в документации
@@ -36,6 +41,7 @@ def startup():
 @app.on_event("shutdown")
 def shutdown():
     """Отключаемся от баз при выключении сервера"""
+    logger.debug('Сервер выключается. Отключаемся от баз.')
     cache.cache.close()
 
 
