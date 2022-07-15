@@ -3,4 +3,4 @@ include .env
 export
 
 webapp.run:
-	python -m main.py
+	python -m main
