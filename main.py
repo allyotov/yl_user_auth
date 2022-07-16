@@ -6,10 +6,14 @@ from fastapi import FastAPI
 
 from src.api.v1.resources import posts
 from src.core import config
-from src.db import cache, redis_cache
+from src.db import cache, redis_cache, db
+from src.models.post import Post
+from src.models.user import User
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+logger.info(config.POSTGRES_HOST)
+
 
 app = FastAPI(
     # Конфигурируем название проекта. Оно будет отображаться в документации
@@ -31,6 +35,9 @@ def root():
 @app.on_event("startup")
 def startup():
     """Подключаемся к базам при старте сервера"""
+    print('Создаем базу!')
+    db.init_db()
+
     cache.cache = redis_cache.CacheRedis(
         cache_instance=redis.Redis(
             host=config.REDIS_HOST, port=config.REDIS_PORT, max_connections=10
