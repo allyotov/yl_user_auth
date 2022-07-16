@@ -1,5 +1,9 @@
+import logging 
 import os
 from pathlib import Path
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('__name__')
 
 VERSION: str = "1.0.0"
 
@@ -23,6 +27,7 @@ POSTGRES_USER: str = os.getenv("POSTGRES_USER", "ylab_hw")
 POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "ylab_hw")
 
 DATABASE_URL: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-
+logger.debug('DATABASE_URL:')
+logger.debug(DATABASE_URL)
 # Корень проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
