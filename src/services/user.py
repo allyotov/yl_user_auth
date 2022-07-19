@@ -1,6 +1,7 @@
 import json
 from functools import lru_cache
 from typing import Optional
+import uuid
 
 from fastapi import Depends
 from sqlmodel import Session
@@ -9,21 +10,27 @@ from src.api.v1.schemas import UserCreate, UserModel
 from src.db import AbstractCache, get_cache, get_session
 from src.models import User
 from src.services import ServiceMixin
-from src.services import auth
+from src.services.auth import Auth
 
 __all__ = ("UserService", "get_user_service")
-
+auth_handler = Auth()
 
 class UserService(ServiceMixin):
-    def signup(self, user_details):
+    def signup(self, user_details: UserCreate) -> dict:
         if self.session.query(User).filter(username=user_details.username).all():
             return 'Account with such username already exists'
         if self.session.query(User).filter(email=user_details.email).all():
             return 'Account with such email already exists'
         try:
             hashed_password = auth_handler.encode_password(user_details.password)
-            user = {'key': user_datails.username, 'password': hashed_password, 'email': user_datails.email}
-            return user_db.put(user)
+            new_user = User(username=user_details.username, 
+                        email=user_details.email, 
+                        password=hashed_password,
+                        uuid=str(uuid.uuid4()))
+            self.session.add(new_user)
+            self.session.commit()
+            self.session.refresh(new_user)
+            return new_user.dict()
         except:
             error_msg = 'Failed to signup user'
             return error_msg
