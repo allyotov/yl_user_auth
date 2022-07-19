@@ -9,11 +9,26 @@ from src.api.v1.schemas import UserCreate, UserModel
 from src.db import AbstractCache, get_cache, get_session
 from src.models import User
 from src.services import ServiceMixin
+from src.services import auth
 
 __all__ = ("UserService", "get_user_service")
 
 
 class UserService(ServiceMixin):
+    def signup(self, user_details):
+        if self.session.query(User).filter(username=user_details.username).all():
+            return 'Account with such username already exists'
+        if self.session.query(User).filter(email=user_details.email).all():
+            return 'Account with such email already exists'
+        try:
+            hashed_password = auth_handler.encode_password(user_details.password)
+            user = {'key': user_datails.username, 'password': hashed_password, 'email': user_datails.email}
+            return user_db.put(user)
+        except:
+            error_msg = 'Failed to signup user'
+            return error_msg
+
+
     def get_user_list(self) -> dict:
         """Получить список пользователей."""
         users = self.session.query(User).order_by(User.created_at).all()
