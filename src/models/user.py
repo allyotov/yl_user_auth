@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from sqlmodel import Field, SQLModel
 
-__all__ = ("Post",)
+__all__ = ("User",)
 
 
 class User(SQLModel, table=True):
