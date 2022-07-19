@@ -1,6 +1,3 @@
-import os
-
-from pydantic import PaymentCardNumber
 import jwt
 from fastapi import HTTPException
 from passlib.context import CryptContext
