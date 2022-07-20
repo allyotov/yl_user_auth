@@ -6,29 +6,30 @@ from pydantic import BaseModel
 __all__ = (
     "UserModel",
     "UserCreate",
+    "UserCreated",
     "UserListResponse",
 )
 
 
-class UserBase(BaseModel):
-    title: str
-    description: str
+class UserCreated(BaseModel):
+    username: str
+    email:str
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
     username: str
     email: str
     password: str
 
 
-class UserModel(UserBase):
+class UserModel(BaseModel):
     id: Optional[int]
     username: str
-    roles: List[str]
+    roles: List[str] = ['common user']
     created_at: datetime
     uuid:  str
-    is_totp_enabled: bool
-    is_active: bool
+    is_totp_enabled: bool = False
+    is_active: bool = True
     email: str
 
 
