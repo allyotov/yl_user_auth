@@ -47,3 +47,10 @@ class UserListResponse(BaseModel):
 class Tokens(BaseModel):
     access_token: str
     refresh_token: str
+
+
+class TokenPayload(BaseModel):
+    exp: datetime
+    iat: datetime
+    scope: str
+    sub: str
