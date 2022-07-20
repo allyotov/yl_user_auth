@@ -9,7 +9,9 @@ __all__ = (
     "UserCreated",
     "UserListResponse",
     "UserAuth",
-    "Tokens"
+    "Tokens",
+    "Message",
+    "EditProfileResult"
 )
 
 
@@ -54,3 +56,13 @@ class TokenPayload(BaseModel):
     iat: datetime
     scope: str
     sub: str
+
+
+class Message(BaseModel):
+    msg: str
+
+
+class EditProfileResult(BaseModel):
+    msg: str
+    user: UserModel
+    access_token: str
