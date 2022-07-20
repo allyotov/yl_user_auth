@@ -1,9 +1,10 @@
 import logging
-from time import timezone
+from datetime import datetime, timedelta
+import uuid
 import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+
 
 from src.core.config import JWT_SECRET_KEY, JWT_ALGORITHM
 
@@ -27,7 +28,8 @@ class Auth():
             'exp': datetime.utcnow() + timedelta(days=0, minutes=30),
             'iat': datetime.utcnow(),
             'scope': 'access_token',
-            'sub': username
+            'sub': username,
+            'jti': str(uuid.uuid4())
         }
         return jwt.encode(
             payload,
@@ -52,7 +54,8 @@ class Auth():
             'exp': datetime.utcnow() + timedelta(days=0, hours=10),
             'iat': datetime.utcnow(),
             'scope': 'refresh_token',
-            'sub': username
+            'sub': username,
+            'jti': str(uuid.uuid4())
         }
         return jwt.encode(
             payload,
