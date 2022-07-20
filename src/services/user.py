@@ -1,10 +1,6 @@
-from cmath import log
-from datetime import datetime
 import logging
-import json
 from functools import lru_cache
-from os import access
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Tuple
 import uuid
 
 from fastapi import Depends, status
@@ -15,7 +11,7 @@ from sqlmodel import Session
 from src.api.v1.schemas import UserCreate, UserModel
 from src.api.v1.schemas.users import TokenPayload, Tokens
 from src.db import AbstractCache, get_cache, get_session
-from src.models import User
+from src.models import User, BlockedAccessToken
 from src.services import ServiceMixin
 from src.services.auth import Auth
 
@@ -81,29 +77,69 @@ class UserService(ServiceMixin):
         new_access_token = auth_handler.encode_token(username=username)
         return Tokens(access_token=new_access_token, refresh_token=new_refresh_token)
 
-    def get_user_list(self) -> dict:
-        """Получить список пользователей."""
-        users = self.session.query(User).order_by(User.created_at).all()
-        return {"user": [UserModel(**user.dict()) for user in users]}
+    def block_user_token(self, access_token):
+        jti = auth_handler.decode_token(access_token)['jti']
+        already_blocked = self.session.query(BlockedAccessToken).filter(BlockedAccessToken.jti==jti).one_or_none()
+        if already_blocked:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Already logged out!')
+        try:
+            new_blocked_token = BlockedAccessToken(jti=jti)
+            self.session.add(new_blocked_token)
+            self.session.commit()
+            self.session.refresh(new_blocked_token)
+            return 'Logged out!'
+        except:
+            raise HTTPException(status_code=500, detail='Can\'t add access token to database.')
 
-    def get_user_detail(self, item_id: int) -> Optional[dict]:
-        """Получить детальную информацию пользователя."""
-        if cached_user := self.cache.get(key=f"user{item_id}"):
-            return json.loads(cached_user)
-        user = self.session.query(User).filter(User.id == item_id).first()
-        if user:
-            self.cache.set(key=f"user{user.id}", value=user.json())
-        return user.dict() if user else None
+    def check_token_if_blocked(self, access_token):
+        jti = auth_handler.decode_token(access_token)['jti']
+        already_blocked = self.session.query(BlockedAccessToken).filter(BlockedAccessToken.jti==jti).one_or_none()
+        if already_blocked:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Already logged out.')
+        return False
 
-    def create_user(self, user: UserCreate) -> dict:
-        """Создать пользователя."""
+    def edit_user(self, access_token, new_user_details: UserCreate) -> Tuple[dict, str]:
+        username = auth_handler.decode_token(access_token)['sub']
+        user = self.session.query(User).filter(User.username==username).one_or_none()
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect user')
+        try:
+            user.username = new_user_details.username
+            user.email = new_user_details.email
+            self.session.commit()
+            self.session.refresh(user)
+            access_token = auth_handler.encode_token(user.username)
+            refresh_token = auth_handler.encode_refresh_token(user.username)
+            user_no_password_field = {key: value for (key, value) in user if key!='password'}
+            user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
+            user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+            return user_no_password_field, access_token
+        except Exception as e:
+            raise HTTPException(status_code=500, detail='Can\'t edit user in database. {}'.format(e))
 
-        # check if user is already in db
-        new_user = User(title=user.username, description=user.email, password=user.password)
-        self.session.add(new_user)
-        self.session.commit()
-        self.session.refresh(new_user)
-        return new_user.dict()
+    # def get_user_list(self) -> dict:
+    #     """Получить список пользователей."""
+    #     users = self.session.query(User).order_by(User.created_at).all()
+    #     return {"user": [UserModel(**user.dict()) for user in users]}
+
+    # def get_user_detail(self, item_id: int) -> Optional[dict]:
+    #     """Получить детальную информацию пользователя."""
+    #     if cached_user := self.cache.get(key=f"user{item_id}"):
+    #         return json.loads(cached_user)
+    #     user = self.session.query(User).filter(User.id == item_id).first()
+    #     if user:
+    #         self.cache.set(key=f"user{user.id}", value=user.json())
+    #     return user.dict() if user else None
+
+    # def create_user(self, user: UserCreate) -> dict:
+    #     """Создать пользователя."""
+
+    #     # check if user is already in db
+    #     new_user = User(title=user.username, description=user.email, password=user.password)
+    #     self.session.add(new_user)
+    #     self.session.commit()
+    #     self.session.refresh(new_user)
+    #     return new_user.dict()
 
 
 # get_user_service — это провайдер UserService. Синглтон
