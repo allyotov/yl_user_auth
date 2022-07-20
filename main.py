@@ -8,7 +8,7 @@ from src.api.v1.resources import posts, users
 from src.core import config
 from src.db import cache, redis_cache, db
 from src.models.post import Post
-from src.models.user import User
+from src.models.user import User, BlockedAccessToken
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
