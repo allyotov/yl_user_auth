@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from sqlmodel import Session
 
 from src.api.v1.schemas import UserCreate, UserModel
-from src.api.v1.schemas.users import TokenPayload
+from src.api.v1.schemas.users import TokenPayload, Tokens
 from src.db import AbstractCache, get_cache, get_session
 from src.models import User
 from src.services import ServiceMixin
@@ -62,14 +62,8 @@ class UserService(ServiceMixin):
 
     def get_current_user(self, token: str) -> UserModel:
         payload = auth_handler.decode_token(token)
+        logger.debug(payload['scope'])
         token_data = TokenPayload(**payload)
-
-        # if token_data.exp.replace(tzinfo=None) > datetime.utcnow().replace(tzinfo=None):
-        #     raise HTTPException(
-        #         status_code = status.HTTP_401_UNAUTHORIZED,
-        #         detail='Token expired',
-        #         headers={'WWW-Authenticate': 'Bearer'}
-        #     )
 
         user: Union[dict[str, Any], None] = self.session.query(User).filter(User.username==token_data.sub).one_or_none()
 
@@ -80,6 +74,12 @@ class UserService(ServiceMixin):
         user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
         logger.debug(user_no_password_field['roles'])
         return UserModel(**user_no_password_field)
+
+    def refresh_tokens(self, refresh_token) -> Tokens:
+        new_refresh_token = auth_handler.update_refresh_token(refresh_token)
+        username = auth_handler.decode_refresh_token(refresh_token)['sub']
+        new_access_token = auth_handler.encode_token(username=username)
+        return Tokens(access_token=new_access_token, refresh_token=new_refresh_token)
 
     def get_user_list(self) -> dict:
         """Получить список пользователей."""
