@@ -1,9 +1,12 @@
+from cmath import log
+import logging
 import json
 from functools import lru_cache
 from typing import Optional
 import uuid
 
 from fastapi import Depends
+from fastapi.exceptions import HTTPException
 from sqlmodel import Session
 
 from src.api.v1.schemas import UserCreate, UserModel
@@ -15,25 +18,29 @@ from src.services.auth import Auth
 __all__ = ("UserService", "get_user_service")
 auth_handler = Auth()
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
 class UserService(ServiceMixin):
     def signup(self, user_details: UserCreate) -> dict:
-        if self.session.query(User).filter(username=user_details.username).all():
-            return 'Account with such username already exists'
-        if self.session.query(User).filter(email=user_details.email).all():
-            return 'Account with such email already exists'
+        if self.session.query(User).filter(User.username==user_details.username).all():
+            raise HTTPException(status_code=409, detail='Account with such username already exists')
+        if self.session.query(User).filter(User.email==user_details.email).all():
+            raise HTTPException(status_code=409, detail='Account with such email already exists')
         try:
             hashed_password = auth_handler.encode_password(user_details.password)
             new_user = User(username=user_details.username, 
                         email=user_details.email, 
                         password=hashed_password,
                         uuid=str(uuid.uuid4()))
+            logger.debug(new_user.roles)
             self.session.add(new_user)
             self.session.commit()
             self.session.refresh(new_user)
             return new_user.dict()
         except:
-            error_msg = 'Failed to signup user'
-            return error_msg
+            raise HTTPException(status_code=500, detail='Can\'t add user to database.')
 
 
     def get_user_list(self) -> dict:
