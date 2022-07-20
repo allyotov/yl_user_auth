@@ -10,7 +10,7 @@ create.db:
 	docker-compose exec ylab_app alembic upgrade head
 
 backend.run:
-	docker-compose exec ylab_app python ./main.py
+	docker-compose exec ylab_app python main.py
 
 down:
 	docker-compose down
@@ -26,3 +26,12 @@ backend.config:
 
 backend.build:
 	docker-compose up -d --no-deps --build ylab_app
+
+debug.install:
+	docker-compose -f docker-compose.debug.yml up -d
+
+debug.run:
+	python main.py
+
+debug.migrate:
+	alembic revision --autogenerate -m 'password field add'
