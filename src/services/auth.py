@@ -3,10 +3,12 @@ from fastapi import HTTPException
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 
+from src.core.config import JWT_SECRET_KEY, JWT_ALGORITHM
+
 
 class Auth():
     hasher = CryptContext(schemes=['bcrypt'])
-    secret = 'APP_SECRET_STRING'
+    secret = JWT_SECRET_KEY
 
     def encode_password(self, password):
         return self.hasher.hash(password)
@@ -24,7 +26,7 @@ class Auth():
         return jwt.encode(
             payload,
             self.secret,
-            algorithm='HS256'
+            algorithm=JWT_ALGORITHM
         )
 
     def decode_token(self, token):
@@ -41,7 +43,7 @@ class Auth():
     def encode_refresh_token(self, username):
         payload = {
             'exp': datetime.utcnow() + timedelta(days=0, hours=10),
-            'iat': datetime.untcnow(),
+            'iat': datetime.utcnow(),
             'scope': 'refresh_token',
             'sub': username
         }
