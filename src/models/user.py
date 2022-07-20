@@ -1,12 +1,10 @@
 from datetime import datetime
-from email.policy import default
-from typing import Optional, List
-from sqlalchemy import null
+from typing import Optional
 from sqlalchemy.ext.mutable import MutableList
 
 from sqlmodel import Field, SQLModel
 
-__all__ = ("User",)
+__all__ = ("User", "BlockedAccessToken")
 
 
 class User(SQLModel, table=True):
@@ -19,3 +17,8 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     email: str = Field(nullable=False)
     password: str = Field(nullable=False)
+
+
+class BlockedAccessToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    jti: str = Field(nullable=False)
