@@ -8,12 +8,19 @@ __all__ = (
     "UserCreate",
     "UserCreated",
     "UserListResponse",
+    "UserAuth",
+    "Tokens"
 )
 
 
 class UserCreated(BaseModel):
     username: str
     email:str
+
+
+class UserAuth(BaseModel):
+    username: str
+    password: str
 
 
 class UserCreate(BaseModel):
@@ -37,12 +44,6 @@ class UserListResponse(BaseModel):
     users: list[UserModel] = []
 
 
-# class User(SQLModel, table=True):
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     username: str = Field(nullable=False)
-#     roles: List[str] = Field(default=[])
-#     created_at: datetime = Field(default=datetime.utcnow(), nullable=False)
-#     uuid:  str = Field()
-#     is_totp_enabled: bool = Field(default=False)
-#     is_active: bool = Field(default=True)
-#     email: str = Field(nullable=False)
+class Tokens(BaseModel):
+    access_token: str
+    refresh_token: str
