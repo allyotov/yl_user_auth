@@ -2,10 +2,11 @@ from cmath import log
 import logging
 import json
 from functools import lru_cache
+from os import access
 from typing import Optional
 import uuid
 
-from fastapi import Depends
+from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 from sqlmodel import Session
 
@@ -42,6 +43,18 @@ class UserService(ServiceMixin):
         except:
             raise HTTPException(status_code=500, detail='Can\'t add user to database.')
 
+    def login(self, user_details: UserCreate) -> dict:
+        user = self.session.query(User).filter(User.username==user_details.username).one_or_none()
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect email')
+
+        if not auth_handler.verify_password(user_details.password, user.password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect password')
+
+        access_token = auth_handler.encode_token(user.username)
+        refresh_token = auth_handler.encode_refresh_token(user.username)
+
+        return {'access_token': access_token, 'refresh_token': refresh_token}
 
     def get_user_list(self) -> dict:
         """Получить список пользователей."""
