@@ -1,13 +1,9 @@
 import logging
 
-from http import HTTPStatus
-from re import A
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 
-from src.api.v1.schemas import UserCreate, UserListResponse, UserModel, UserCreated, UserAuth, Tokens
+from src.api.v1.schemas import UserCreate, UserModel, UserCreated, UserAuth, Tokens, Message, EditProfileResult
 from src.services import UserService, get_user_service
 
 router = APIRouter()
@@ -16,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 reuseable_oauth = OAuth2PasswordBearer(tokenUrl='/login', scheme_name='JWT')
-reuseable_oauth_refresh = OAuth2PasswordBearer(tokenUrl='/refresh', scheme_name='JWT')
+# reuseable_oauth_refresh = OAuth2PasswordBearer(tokenUrl='/refresh', scheme_name='JWT')
 security = HTTPBearer()
 
 
@@ -47,6 +43,26 @@ def refresh(
 
 @router.get(path="/users/me", response_model=UserModel, summary="Посмотреть информацию о себе", tags=["auth"],)
 def get_me(token: str = Depends(reuseable_oauth), user_service: UserService = Depends(get_user_service),) -> UserModel:
-    logger.debug('token')
-    logger.debug(token)
+    user_service.check_token_if_blocked(token)
     return user_service.get_current_user(token)
+
+
+@router.patch(path="/users/me", response_model=EditProfileResult, summary="Отредактировать свой профиль", tags=["auth"],)
+def edit_profile(
+        user: UserCreated, 
+        credentials: HTTPAuthorizationCredentials = Security(security),
+        user_service: UserService = Depends(get_user_service),) -> EditProfileResult:
+    access_token = credentials.credentials
+    user_service.check_token_if_blocked(access_token)
+    edited_user, access_token = user_service.edit_user(access_token=access_token, new_user_details=user)
+    return EditProfileResult(
+        msg='Update is successful. Please use new access_token.',
+        user=edited_user,
+        access_token=access_token
+        )
+
+
+@router.post(path="/logout", response_model=Message, summary="Выйти", tags=["auth"],)
+def logout(token: str = Depends(reuseable_oauth), user_service: UserService = Depends(get_user_service),) -> Message:
+    logger.debug(token)
+    return Message(msg=user_service.block_user_token(token))
