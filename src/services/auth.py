@@ -1,5 +1,6 @@
+from time import timezone
 import jwt
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 
@@ -31,14 +32,14 @@ class Auth():
 
     def decode_token(self, token):
         try:
-            payload = jwt.decode(token, self, algorithms=['HS256'])
+            payload = jwt.decode(token, self.secret, algorithms=[JWT_ALGORITHM])
             if (payload['scope'] == 'access_token'):
-                return payload['sub']
-            raise HTTPException(status_code=401, detail='Scope for the token is invalid')
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail='Token expired')
+                return payload
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Scope for the token is invalid')
+        except jwt.ExpiredSignatureError as e:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Token expired: {}'.format(e.args))
         except jwt.InvalidTokenError:
-            raise HTTPException(status_code=401, detail='Invalid token')
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token')
 
     def encode_refresh_token(self, username):
         payload = {
@@ -50,12 +51,12 @@ class Auth():
         return jwt.encode(
             payload,
             self.secret,
-            algorithm='HS256'
+            algorithm=JWT_ALGORITHM
         )
 
     def refresh_token(self, refresh_token):
         try:
-            payload = jwt.decode(refresh_token, self.secret, algorithms=['HS256'])
+            payload = jwt.decode(refresh_token, self.secret, algorithms=[JWT_ALGORITHM])
             if (payload['scope'] == 'refresh_token'):
                 username = payload['sub']
                 new_token = self.encode_token(username)
