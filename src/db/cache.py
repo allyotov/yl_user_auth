@@ -4,6 +4,8 @@ from typing import Optional, Union
 __all__ = (
     "AbstractCache",
     "get_cache",
+    "get_blocked_access_tokens_cache",
+    "get_active_refresh_tokens_cache"
 )
 
 from src.core import config
@@ -32,8 +34,15 @@ class AbstractCache(ABC):
 
 
 cache: Optional[AbstractCache] = None
-
+blocked_access_tokens_cache: Optional[AbstractCache] = None
+active_refresh_tokens_cache: Optional[AbstractCache] = None
 
 # Функция понадобится при внедрении зависимостей
 def get_cache() -> AbstractCache:
     return cache
+
+def get_blocked_access_tokens_cache() -> AbstractCache:
+    return blocked_access_tokens_cache
+
+def get_active_refresh_tokens_cache() -> AbstractCache:
+    return active_refresh_tokens_cache
