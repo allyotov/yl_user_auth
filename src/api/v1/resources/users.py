@@ -66,3 +66,9 @@ def edit_profile(
 def logout(token: str = Depends(reuseable_oauth), user_service: UserService = Depends(get_user_service),) -> Message:
     logger.debug(token)
     return Message(msg=user_service.block_user_token(token))
+
+
+@router.post(path="/logout_all", response_model=Message, summary="Выйти со всех устройств", tags=["auth"],)
+def logout_all(token: str = Depends(reuseable_oauth), user_service: UserService = Depends(get_user_service),) -> Message:
+    logger.debug(token)
+    return Message(msg=user_service.delete_refresh_tokens_from_cache(token))
