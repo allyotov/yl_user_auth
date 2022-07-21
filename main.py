@@ -1,3 +1,4 @@
+from email.generator import DecodedGenerator
 import logging
 
 import redis
@@ -38,23 +39,44 @@ def startup():
     print('Создаем базу!')
     db.init_db()
 
+
+    logger.debug(config.POSTGRES_HOST)
+    logger.debug(config.POSTGRES_PORT)
+    logger.debug(config.REDIS_HOST)
+    logger.debug(config.REDIS_PORT)
     cache.cache = redis_cache.CacheRedis(
         cache_instance=redis.Redis(
-            host=config.REDIS_HOST, port=config.REDIS_PORT, max_connections=10
+            host=config.REDIS_HOST, port=config.REDIS_PORT, max_connections=10, db=1
         )
     )
-
+    logger.debug(cache.cache.cache)
+    cache.cache.cache.ping()
+    cache.blocked_access_tokens_cache = redis_cache.CacheRedis(
+        cache_instance=redis.Redis(
+            host=config.REDIS_HOST, port=config.REDIS_PORT, db=2, decode_responses=True
+        )
+    )
+    logger.debug(cache.blocked_access_tokens_cache.cache)
+    cache.active_refresh_tokens_cache = redis_cache.CacheRedis(
+        cache_instance=redis.Redis(
+            host=config.REDIS_HOST, port=config.REDIS_PORT, db=3, decode_responses=True
+        )
+    )
+    logger.debug(cache.active_refresh_tokens_cache.cache)
 
 @app.on_event("shutdown")
 def shutdown():
     """Отключаемся от баз при выключении сервера"""
     logger.debug('Сервер выключается. Отключаемся от баз.')
     cache.cache.close()
+    cache.blocked_access_tokens_cache.cache.close()
+    cache.active_refresh_tokens_cache.cache.close()
 
 
 # Подключаем роутеры к серверу
 app.include_router(router=posts.router, prefix="/api/v1/posts")
 app.include_router(router=users.router, prefix="/api/v1")
+
 
 if __name__ == "__main__":
     # Приложение может запускаться командой
