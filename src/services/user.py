@@ -51,7 +51,13 @@ class UserService(ServiceMixin):
             self.session.add(new_user)
             self.session.commit()
             self.session.refresh(new_user)
-            return new_user.dict()
+
+            new_user_dict = new_user.dict()
+            new_user_dict['created_at'] = new_user_dict['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+            self.cache.set(key=f"user:{new_user.username}", value=json.dumps(new_user_dict))
+            logger.debug('User saved to redis cache')
+
+            return new_user_dict
         except:
             raise HTTPException(status_code=500, detail='Can\'t add user to database.')
 
@@ -73,6 +79,13 @@ class UserService(ServiceMixin):
         payload = auth_handler.decode_token(token)
         logger.debug(payload['scope'])
         token_data = TokenPayload(**payload)
+
+        if cached_user := self.cache.get(key=f"user:{token_data.sub}"):
+            logger.debug('Load user from redis cache.')
+            user_no_password_field = {key: value for (key, value) in json.loads(cached_user).items() if key!='password'}
+            user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
+            user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+            return UserModel(**user_no_password_field)
 
         user: Union[dict[str, Any], None] = self.session.query(User).filter(User.username==token_data.sub).one_or_none()
 
@@ -138,6 +151,11 @@ class UserService(ServiceMixin):
             user_no_password_field = {key: value for (key, value) in user if key!='password'}
             user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
             user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+
+            user_no_password_field['created_at'] = user_no_password_field['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+            self.cache.set(key=f"user:{user_no_password_field['username']}", value=json.dumps(user_no_password_field))
+            logger.debug('User saved to redis cache')
+
             return user_no_password_field, access_token
         except Exception as e:
             raise HTTPException(status_code=500, detail='Can\'t edit user in database. {}'.format(e))
