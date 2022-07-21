@@ -7,7 +7,7 @@ services:
     expose:
       - 6379
     ports:
-      - "9000:6379"
+      - "6379:6379"
     networks:
       - ylab_network
     healthcheck:
@@ -20,7 +20,7 @@ services:
     container_name: ylab_postgres_db
     image: postgres:latest
     volumes:
-      - ./debug-pg-data:/var/lib/postgresql/data/
+      - ./debug-db-data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_DB=ylab_hw
       - POSTGRES_USER=ylab_hw
@@ -36,6 +36,9 @@ services:
       interval: 5s
       timeout: 20s
       retries: 100
+    depends_on:
+      ylab_redis:
+        condition: service_healthy
 
 networks:
   ylab_network:
