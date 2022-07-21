@@ -12,7 +12,6 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 reuseable_oauth = OAuth2PasswordBearer(tokenUrl='/login', scheme_name='JWT')
-# reuseable_oauth_refresh = OAuth2PasswordBearer(tokenUrl='/refresh', scheme_name='JWT')
 security = HTTPBearer()
 
 

@@ -2,10 +2,9 @@ from http import HTTPStatus
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from src.api.v1.schemas import PostCreate, PostListResponse, PostModel
-from src.models import user
 from src.services import PostService, UserService, get_post_service, get_user_service
 
 router = APIRouter()

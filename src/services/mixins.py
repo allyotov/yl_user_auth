@@ -7,3 +7,5 @@ class ServiceMixin:
     def __init__(self, cache: AbstractCache, session: Session):
         self.cache: AbstractCache = cache
         self.session: Session = session
+
+

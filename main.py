@@ -1,4 +1,3 @@
-from email.generator import DecodedGenerator
 import logging
 
 import redis
@@ -8,10 +7,10 @@ from fastapi import FastAPI
 from src.api.v1.resources import posts, users
 from src.core import config
 from src.db import cache, redis_cache, db
-from src.models.post import Post
-from src.models.user import User, BlockedAccessToken
+from src.models.post import Post # need it here to create tables
+from src.models.user import User, BlockedAccessToken # need it here to create tables
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info(config.POSTGRES_HOST)
 
@@ -36,14 +35,9 @@ def root():
 @app.on_event("startup")
 def startup():
     """Подключаемся к базам при старте сервера"""
-    print('Создаем базу!')
+    logger.debug('Создаем базу!')
     db.init_db()
 
-
-    logger.debug(config.POSTGRES_HOST)
-    logger.debug(config.POSTGRES_PORT)
-    logger.debug(config.REDIS_HOST)
-    logger.debug(config.REDIS_PORT)
     cache.cache = redis_cache.CacheRedis(
         cache_instance=redis.Redis(
             host=config.REDIS_HOST, port=config.REDIS_PORT, max_connections=10, db=1

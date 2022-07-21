@@ -2,13 +2,11 @@ import json
 import re
 import logging
 from functools import lru_cache
-from tabnanny import check
-from typing import Optional, Any, Union, Tuple
+from typing import Any, Union, Tuple
 import uuid
 
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
-from pydantic import ValidationError
 from sqlmodel import Session
 
 from src.api.v1.schemas import UserCreate, UserModel
@@ -43,6 +41,15 @@ class UserService(ServiceMixin):
     def check_email(self, email: str) -> bool:
         logger.debug(email)
         return re.search(EMAIL_RE, email)
+
+    def get_user_dict(self, user) -> dict:
+        user_no_password_field = {key: value for (key, value) in user if key!='password' and key!='_sa_instance_state'}
+        if type(user_no_password_field['roles']) is not list:
+            user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
+            user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+        if type(user_no_password_field['created_at']) is not str:
+            user_no_password_field['created_at'] = user_no_password_field['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+        return user_no_password_field
 
     def signup(self, user_details: UserCreate) -> dict:
         if self.session.query(User).filter(User.username==user_details.username).all():
@@ -93,18 +100,15 @@ class UserService(ServiceMixin):
 
         if cached_user := self.cache.get(key=f"user:{token_data.sub}"):
             logger.debug('Load user from redis cache.')
-            user_no_password_field = {key: value for (key, value) in json.loads(cached_user).items() if key!='password'}
-            user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
-            user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+            user_no_password_field = self.get_user_dict(json.loads(cached_user).items())
             return UserModel(**user_no_password_field)
 
         user: Union[dict[str, Any], None] = self.session.query(User).filter(User.username==token_data.sub).one_or_none()
 
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Could not find user") 
-        user_no_password_field = {key: value for (key, value) in user if key!='password'}
-        user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
-        user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
+
+        user_no_password_field = self.get_user_dict(user)
         logger.debug(user_no_password_field['roles'])
         return UserModel(**user_no_password_field)
 
@@ -161,11 +165,8 @@ class UserService(ServiceMixin):
             access_token = auth_handler.encode_token(user.username)
             refresh_token = auth_handler.encode_refresh_token(user.username)
             self.add_refresh_token_to_cache(refresh_token)
-            user_no_password_field = {key: value for (key, value) in user if key!='password' and key!='_sa_instance_state'}
-            user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
-            user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
 
-            user_no_password_field['created_at'] = user_no_password_field['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+            user_no_password_field = self.get_user_dict(user)
             logger.debug(user_no_password_field)
             self.cache.set(key=f"user:{user_no_password_field['username']}", value=json.dumps(user_no_password_field))
             logger.debug('User saved to redis cache')
