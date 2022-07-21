@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import lru_cache
 from typing import Optional
 
@@ -13,15 +14,28 @@ from src.services import ServiceMixin
 __all__ = ("PostService", "get_post_service")
 
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
 class PostService(ServiceMixin):
     def get_post_list(self) -> dict:
         """Получить список постов."""
-        posts = self.session.query(Post).order_by(Post.created_at).all()
-        return {"posts": [PostModel(**post.dict()) for post in posts]}
+        posts = []
+        for key in self.cache.cache.keys("post*"):
+            posts.append(json.loads(self.cache.get(key=key)))
+        if not posts:
+            posts = self.session.query(Post).order_by(Post.created_at).all()
+            return {"posts": [PostModel(**post.dict()) for post in posts]}
+        else:
+            logger.debug('Got list of posts from redis cache.')
+            return {"posts": [PostModel(**post) for post in posts]}
+        
 
     def get_post_detail(self, item_id: int) -> Optional[dict]:
         """Получить детальную информацию поста."""
-        if cached_post := self.cache.get(key=f"{item_id}"):
+        if cached_post := self.cache.get(key=f"post{item_id}"):
+            logger.debug('Load post from redis cache.')
             return json.loads(cached_post)
 
         post = self.session.query(Post).filter(Post.id == item_id).first()
@@ -35,7 +49,10 @@ class PostService(ServiceMixin):
         self.session.add(new_post)
         self.session.commit()
         self.session.refresh(new_post)
-        return new_post.dict()
+        new_post_dict = new_post.dict()
+        new_post_dict['created_at'] = new_post_dict['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+        self.cache.set(key=f"post{new_post.id}", value=json.dumps(new_post_dict))
+        return new_post_dict
 
 
 # get_post_service — это провайдер PostService. Синглтон
