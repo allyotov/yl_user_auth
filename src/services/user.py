@@ -1,6 +1,8 @@
 import json
+import re
 import logging
 from functools import lru_cache
+from tabnanny import check
 from typing import Optional, Any, Union, Tuple
 import uuid
 
@@ -23,6 +25,9 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+EMAIL_RE = '^[A-Za-z0-9]+[\._]?[A-Za-z0-9]+[@]\w+[.]\w{2,3}$'
+
+
 class UserService(ServiceMixin):
     def __init__(
                 self, 
@@ -35,11 +40,17 @@ class UserService(ServiceMixin):
             self.blocked_access_tokens_cache = blocked_access_tokens_cache
             self.active_refresh_tokens_cache = active_refresh_tokens_cache
 
+    def check_email(self, email: str) -> bool:
+        logger.debug(email)
+        return re.search(EMAIL_RE, email)
+
     def signup(self, user_details: UserCreate) -> dict:
         if self.session.query(User).filter(User.username==user_details.username).all():
             raise HTTPException(status_code=409, detail='Account with such username already exists')
         if self.session.query(User).filter(User.email==user_details.email).all():
             raise HTTPException(status_code=409, detail='Account with such email already exists')
+        if not self.check_email(user_details.email):
+            raise HTTPException(status_code=409, detail='Email is not correct!')
         try:
             hashed_password = auth_handler.encode_password(user_details.password)
             new_user = User(username=user_details.username, 
@@ -64,7 +75,7 @@ class UserService(ServiceMixin):
     def login(self, user_details: UserCreate) -> dict:
         user = self.session.query(User).filter(User.username==user_details.username).one_or_none()
         if user is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect email')
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect username')
 
         if not auth_handler.verify_password(user_details.password, user.password):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect password')
@@ -140,6 +151,8 @@ class UserService(ServiceMixin):
         user = self.session.query(User).filter(User.username==username).one_or_none()
         if user is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Incorrect user')
+        if not self.check_email(new_user_details.email):
+            raise HTTPException(status_code=409, detail='Email is not correct!')
         try:
             user.username = new_user_details.username
             user.email = new_user_details.email
@@ -148,11 +161,12 @@ class UserService(ServiceMixin):
             access_token = auth_handler.encode_token(user.username)
             refresh_token = auth_handler.encode_refresh_token(user.username)
             self.add_refresh_token_to_cache(refresh_token)
-            user_no_password_field = {key: value for (key, value) in user if key!='password'}
+            user_no_password_field = {key: value for (key, value) in user if key!='password' and key!='_sa_instance_state'}
             user_no_password_field['roles'] = user_no_password_field['roles'].replace('}', '').replace('{', '')
             user_no_password_field['roles'] = user_no_password_field['roles'].split(',')
 
             user_no_password_field['created_at'] = user_no_password_field['created_at'].strftime('%Y-%m-%dT%H:%M:%S')
+            logger.debug(user_no_password_field)
             self.cache.set(key=f"user:{user_no_password_field['username']}", value=json.dumps(user_no_password_field))
             logger.debug('User saved to redis cache')
 
