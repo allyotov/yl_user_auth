@@ -37,7 +37,7 @@ services:
     container_name: ylab_postgres_db
     image: postgres:latest
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - ./postgres-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=ylab_hw
       - POSTGRES_USER=ylab_hw
@@ -56,6 +56,3 @@ services:
 
 networks:
   ylab_network:
-
-volumes:
-  postgres_data:
